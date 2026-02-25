@@ -25,6 +25,7 @@ erDiagram
         string unit_id FK
         string part_number
         string stl_url
+        string status "PENDING/ACTIVE"
     }
     PART_ITEM {
         string id PK
@@ -53,7 +54,10 @@ erDiagram
 設計データの基本単位。
 - `id`: 内部ID
 - `part_number`: 型番・図番
-- `stl_url`: Firebase Storage上のパスまたは署名付きURL
+- `stl_url`: Firebase Storage上のパス
+- `status`: インポート進捗状態
+    - `PENDING`: DB登録済み、ファイルアップロード待ち
+    - `ACTIVE`: ファイルアップロード完了、利用可能
 
 ### 2.2 PartItem (個体データ)
 製造現場で実際に動く「モノ」の単位。

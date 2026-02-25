@@ -5,19 +5,31 @@
 
 ### 1.1 部品インポートパイプライン (`ImportPipeline`)
 - **入力**: `files: File[]`, `projectId: string`
+- **実装方針**: 
+    - 開発コスト削減およびデータ不整合防止のため、すべてのステップを **同期処理（直列実行）** で行う。
+    - ユーザーはアップロードから本登録完了まで画面上で待機し、途中でバックグラウンド処理への移行は行わない。
 - **ステップ**:
-    1. ファイル名から `part_number` を抽出（解析ユーティリティ）。
-    2. 既存部品の重複チェック。
-    3. `DesignRegistryService` により `Part` レコードを作成。
-    4. `StorageService` によりファイルをアップロードし、URLを取得。
-    5. `Part` レコードにURLを紐付け更新。
+    1. **プレ登録 (Pending)**: 
+        - ファイル名から `part_number` を抽出。
+        - DBに `status: "PENDING"` で `Part` レコードを作成し、一意のIDを確保。
+    2. **ストレージ保存**: 
+        - 確保したIDをディレクトリ構造やファイル名に含めて Firebase Storage へアップロード（例: `parts/{id}/file.stl`）。
+    3. **本登録 (Activate)**: 
+        - アップロード成功を受けて、DBの `stl_url` を更新し、`status: "ACTIVE"` に変更。
+    4. **クリーンアップ (非同期/エラー時)**:
+        - 失敗時は必要に応じて `PENDING` レコードを削除、またはリトライト対象とする。
 
 ### 1.2 製造オーダーパイプライン (`OrderPipeline`)
 - **入力**: `partId: string`, `quantity: number`
 - **ステップ**:
-    1. 部品の存在確認と基本情報の取得。
-    2. 指定個数分の `PartItem` レコードを一括生成（トランザクション有）。
-    3. 各個体の初期履歴を `HistoryService` で記録。
+    1. **事前チェック**: 部品の存在確認と基本情報の取得。指定数以上の空きBoxがあるか確認。
+    2. **ドメイン操作 (トランザクション内)**:
+        - **空きBox確保**: 
+            - `Box` テーブルから `status: "AVAILABLE"` かつ最小IDのレコードを、`quantity` 分取得。
+            - **排他制御**: `SELECT FOR UPDATE` 等を用いて、取得対象のBoxレコードをロックする。
+        - **Boxステータス更新**: 取得したBoxのステータスを `"OCCUPIED"` に更新。
+        - **個体生成**: 取得した `box_id` と紐付けた `PartItem` レコードを `quantity` 分一括生成。
+        - **履歴記録**: 各個体の初期履歴を `HistoryService` で記録。
 
 ### 1.3 ステータス遷移パイプライン (`StatusUpdatePipeline`)
 - **入力**: `itemId: string`, `newStatus: string`
