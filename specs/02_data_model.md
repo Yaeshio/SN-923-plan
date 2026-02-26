@@ -9,11 +9,11 @@ erDiagram
     PART ||--o{ PART_ITEM : generates
     PART_ITEM ||--o{ STATUS_HISTORY : "logged in"
     PART_ITEM ||--o| BOX : "stored in"
+    MACHINE ||--o{ PART_ITEM : "processes"
 
     PROJECT {
         string id PK
         string name
-        datetime created_at
     }
     UNIT {
         string id PK
@@ -25,14 +25,20 @@ erDiagram
         string unit_id FK
         string part_number
         string stl_url
-        string status "PENDING/ACTIVE"
     }
     PART_ITEM {
         string id PK
         string part_id FK
+        string machine_id FK "使用したプリンタ"
+        string box_id FK "現在の保管場所"
         string status
-        string box_id FK
         datetime updated_at
+    }
+    MACHINE {
+        string id PK
+        string name "プリンタ名"
+        string type "SLA/FDM等"
+        string status "READY/RUNNING/MAINTENANCE"
     }
     STATUS_HISTORY {
         string id PK

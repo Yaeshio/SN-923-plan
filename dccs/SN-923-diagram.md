@@ -23,6 +23,7 @@ flowchart LR
         PartItem["PartItem<br>(status保持)"]
         History["StatusHistory<br>(変更ログ)"]
         Box["Boxマスタ"]
+        Machine["Machine<br>(造形機マスタ)"]
   end
  subgraph External["外部リソース"]
         Storage["Firebase Storage<br>(STLファイル)"]
@@ -31,9 +32,11 @@ flowchart LR
     Unit --- Part
     Part -. 生成 .-> PartItem
     PartItem --- History & Box
+    PartItem --- Machine
     BoardUI -- ドラッグ&ドロップ等 --> StatusLogic
     StatusLogic -- Update status --> PartItem
     StatusLogic -- Insert record --> History
+    StatusLogic -- "Release Box<br>(if Discard/Shipped)" --> Box
     DetailUI -- DLリクエスト --> DownloadLogic
     DownloadLogic -- URLリクエスト --> Storage
     Storage -- 一時的な閲覧URL --> DetailUI
