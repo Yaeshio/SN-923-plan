@@ -32,12 +32,18 @@
         - **履歴記録**: 各個体の初期履歴を `HistoryService` で記録。
 
 ### 1.3 ステータス遷移パイプライン (`StatusUpdatePipeline`)
-- **入力**: `itemId: string`, `newStatus: string`
+- **入力**: `itemId: string`, `newStatus: string`, `reason_code?: string`, `comment?: string`
 - **ステップ**:
-    1. 遷移ルールチェック（`dccs/SN-923-stats.md` に基づくバリデーション。戻り遷移や造形失敗等も考慮）。
-    2. `ProductionControlService` により `PartItem` のステータスを更新。
-    3. `HistoryService` により遷移ログを保存。
-    4. ステータスが `SHIPPED` または `DISCARD` の場合、`StorageLogisticsService` を通じて `Box` を解放。
+    1. **遷移ルール・ガード条件チェック**:
+        - `dccs/SN-923-stats.md` の状態遷移図に反する遷移を禁止。
+        - **工程スキップ禁止**: 工程順序をスキップする遷移（例: `PRINTING` から `INSPECTION`）をガード条件で弾く。
+    2. **リソース再確保（例外系リカバリ）**:
+        - 戻り遷移やリカバリ遷移（`SHIPPED/DISCARD/CANCELLED` からの復帰）において、対象の `PartItem` に紐づく `Box` が既に解放されている、あるいは現在 `"AVAILABLE"` 状態である場合、`OrderPipeline` のロジックと同様に利用可能な Box を再割り当てする。
+    3. **ドメイン更新 (トランザクション内)**:
+        - `ProductionControlService` により `PartItem` のステータスを更新。
+        - ステータスが `SHIPPED`, `DISCARD`, または `CANCELLED` に遷移する場合、`StorageLogisticsService` を通じて紐付いている `Box` を解放する。
+    4. **履歴記録**:
+        - `HistoryService` により、`reason_code` と `comment` を含む詳細な履歴を保存。
 
 ### 1.4 ダウンロードURL発行パイプライン (`DownloadPipeline`)
 - **入力**: `partId: string`
@@ -47,4 +53,7 @@
 
 ## 2. バリデーションルール
 - STLファイルのバリデーション（サイズ、拡張子）。
-- ステータス遷移の整合性チェック（例: 完了済みから未着手への不用意な戻りを制限など）。
+- ステータス遷移の整合性チェック:
+    - `dccs/SN-923-stats.md` の定義に基づいた順方向・逆方向（戻り）の許可。
+    - **工程スキップの禁止**: 前後の定義を逸脱した遷移（例: `PRINTING` から `INSPECTION` へ直接飛ぶ）を禁止。
+    - 完了ステータス (`SHIPPED/DISCARD/CANCELLED`) からのリカバリ時は、`reason_code` の指定を必須とする。

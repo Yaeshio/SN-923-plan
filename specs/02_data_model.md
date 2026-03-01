@@ -45,6 +45,8 @@ erDiagram
         string part_item_id FK
         string status_from
         string status_to
+        string reason_code
+        string comment
         datetime changed_at
     }
     BOX {
@@ -75,6 +77,8 @@ erDiagram
 トレーサビリティのための変更ログ。
 - `part_item_id`: 対象個体
 - `status_from / status_to`: 遷移前後
+- `reason_code`: 遷移理由コード（戻り、廃棄、リカバリの理由）
+- `comment`: 遷移に関する付記
 - `changed_at`: 変更日時
 
 ### 2.4 Box (保管場所)
